@@ -1,0 +1,1 @@
+Kiến trúc ba lớp đơn giản: giao diện web, backend API và CSDL. Backend chia thành bốn khối: middleware truy cập, Survey Service (UC1, UC2, UC8), Report Service (UC3 → UC6) và Sentiment Module (UC7, COULD). Dữ liệu mẫu (survey_responses.csv, tickets_history.csv, technicians.csv) được nạp vào CSDL bằng một script import; bảng dim_date được sinh bằng script.
