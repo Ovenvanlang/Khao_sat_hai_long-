@@ -1,0 +1,30 @@
+{
+  "name": "smartcrm-237480201is10-khao_sat_hai_long",
+  "version": "1.0.0",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ovenvanlang/Khao_sat_hai_long-.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Ovenvanlang/Khao_sat_hai_long-/issues"
+  },
+  "homepage": "https://github.com/Ovenvanlang/Khao_sat_hai_long-#readme",
+  "description": "",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.8",
+    "express": "^5.3.0",
+    "sqlite3": "^6.0.1"
+  }
+}
