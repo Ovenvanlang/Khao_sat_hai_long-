@@ -1,23 +1,39 @@
-// Access Middleware (QT-14, QT-15). Buổi 8: MÔ PHỎNG vai trò bằng header, chưa đăng nhập thật
-// (SSO nằm ngoài phạm vi – xem SRS mục 1.3).
-//   X-Role:      he_thong | quan_ly | bgd | marketing   (không gửi = khách hàng)
-//   X-Center-Id: bắt buộc với quan_ly (trung tâm họ phụ trách)
+// Access Middleware (QT-14, QT-15).
+// Buổi 10: vai trò lấy từ TOKEN đăng nhập trong header `Authorization: Bearer <token>`
+// (thay cho header X-Role mô phỏng ở buổi 8 – xem docs/thay-doi-thiet-ke.md, TD-14).
+// Không có token  -> coi là KHÁCH HÀNG: chỉ dùng được các API khảo sát công khai.
+// Token sai/hết hạn -> 401 để frontend xóa token và quay về trang đăng nhập.
 const E = require('../errors');
 
-const STAFF_ROLES = ['he_thong', 'quan_ly', 'bgd', 'marketing'];
+const GUEST = { role: 'khach_hang', centerId: null, userId: null, name: 'Khách hàng' };
 
-function attachUser(req, res, next) {
-  const role = (req.header('X-Role') || 'khach_hang').toLowerCase();
-  if (role !== 'khach_hang' && !STAFF_ROLES.includes(role)) return next(E.forbidden('Vai trò không hợp lệ'));
-  const rawCenter = req.header('X-Center-Id');
-  const centerId = rawCenter && /^\d+$/.test(rawCenter) ? Number(rawCenter) : null;
-  req.user = { role, centerId };
+function createAttachUser(authService) {
+  return function attachUser(req, res, next) {
+    const header = req.header('Authorization') || '';
+    if (!header) { req.user = GUEST; return next(); }
+    const match = /^Bearer\s+(.+)$/i.exec(header.trim());
+    if (!match) return next(E.invalidToken());
+    try {
+      req.user = authService.verifyToken(match[1].trim());
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
+}
+
+function requireLogin(req, res, next) {
+  if (!req.user || req.user.role === 'khach_hang') return next(E.unauthenticated());
   next();
 }
 
+/** Chặn theo vai trò: chưa đăng nhập -> 401 (để frontend chuyển về đăng nhập), sai vai trò -> 403. */
 function requireRole(...allowed) {
-  return (req, res, next) =>
-    allowed.includes(req.user.role) ? next() : next(E.forbidden(`Vai trò ${req.user.role} không có quyền`));
+  return (req, res, next) => {
+    if (!req.user || req.user.role === 'khach_hang') return next(E.unauthenticated());
+    if (!allowed.includes(req.user.role)) return next(E.forbidden(`Vai trò ${req.user.role} không có quyền`));
+    next();
+  };
 }
 
-module.exports = { attachUser, requireRole };
+module.exports = { createAttachUser, requireLogin, requireRole, GUEST };

@@ -112,19 +112,38 @@ Hệ thống thu thập phản hồi của khách sau khi phiếu bảo hành đ
 
 ---
 
-## Phụ lục A – Hợp đồng API (khớp mã nguồn buổi 8)
+## Phụ lục A – Hợp đồng API (khớp mã nguồn buổi 10)
 
-Cơ chế vai trò mô phỏng bằng header (xem TD-09): `X-Role` ∈ `he_thong | quan_ly | bgd | marketing` (không gửi = khách hàng); `X-Center-Id` bắt buộc với `quan_ly`.
-Mọi lỗi có dạng `{ "error": "<MA_LOI>", "message": "..." }`.
+Xác thực bằng **token**: đăng nhập ở `POST /api/auth/login`, các lệnh sau gửi `Authorization: Bearer <token>` (thay cơ chế header mô phỏng của buổi 8 – xem TD-14). Không gửi token = khách hàng, chỉ dùng được hai endpoint công khai của form khảo sát.
+Mọi lỗi có dạng `{ "error": "<MA_LOI>", "message": "..." }`. Mã 401: `CHUA_DANG_NHAP` (chưa đăng nhập) hoặc `TOKEN_KHONG_HOP_LE` (token sai/hết hạn); 403 `KHONG_DU_QUYEN` (sai vai trò hoặc vi phạm QT-14/BS-05).
 
 | Method & đường dẫn | Vai trò | Mô tả | Mã trả về |
 |---|---|---|---|
-| `POST /api/surveys` body `{ticket_id}` | `he_thong` | UC1: tạo khảo sát cho phiếu ĐÃ ĐÓNG | 201; 400; 403; 404; 409 `PHIEU_CHUA_DONG` / `DA_KHAO_SAT` |
+| `POST /api/auth/login` body `{username, password}` | công khai | Đăng nhập, trả `{token, expires_at, user}` | 200; 400; 401 `SAI_TAI_KHOAN_HOAC_MAT_KHAU` |
+| `GET /api/auth/me` | đã đăng nhập | Thông tin phiên hiện tại | 200; 401 |
+| `POST /api/surveys` body `{ticket_id}` | `he_thong` | UC1: tạo khảo sát cho phiếu ĐÃ ĐÓNG | 201; 400; 401; 403; 404; 409 `PHIEU_CHUA_DONG` / `DA_KHAO_SAT` |
 | `GET /api/surveys/:ticketId` | công khai | Khách mở form; không lộ thông tin khách | 200; 404 |
 | `POST /api/surveys/:ticketId` body `{score, comment?}` | công khai | UC2: gửi phản hồi | 200; 400; 404; 409 `DA_KHAO_SAT` |
-| `GET /api/surveys?status=&center_id=&score_max=&page=&limit=` | `quan_ly`, `bgd` | Danh sách (số điện thoại đầy đủ theo QT-15); quản lý bị ép theo trung tâm mình | 200; 400; 403 |
-| `DELETE /api/surveys/:ticketId` | `quan_ly`, `bgd` | Xóa mềm (QT-13) | 200; 403; 404 |
-| `GET /api/reports/csat` | `quan_ly`, `bgd`, `marketing` | UC3–UC5 – **chưa hiện thực** | 501 `CHUA_HIEN_THUC` |
-| `GET /api/reports/low-score` | `quan_ly`, `bgd` | UC6 – **chưa hiện thực** | 501 |
+| `GET /api/surveys?status=&center_id=&score_max=&page=&limit=` | `quan_ly`, `bgd` | Danh sách (số điện thoại đầy đủ theo QT-15); quản lý bị ép theo trung tâm mình | 200; 400; 401; 403 |
+| `DELETE /api/surveys/:ticketId` | `quan_ly`, `bgd` | Xóa mềm (QT-13) | 200; 401; 403; 404 |
+| `GET /api/reports/csat?center_id=&from=&to=` | `quan_ly`, `bgd`, `marketing` | UC3 + UC4: CSAT, phân bố điểm, bảng theo kỹ thuật viên. Mặc định lấy quý hiện tại | 200; 400; 401; 403; 404 |
+| `GET /api/reports/trend?granularity=month\|quarter&year=&center_id=` | `quan_ly`, `bgd`, `marketing` | UC5: xu hướng; chỉ trả kỳ CÓ phản hồi, không nội suy | 200; 400; 401; 403 |
+| `GET /api/reports/low-score?center_id=&page=&limit=` | `quan_ly`, `bgd` | UC6: phản hồi điểm ≤ 2 (BS-03) | 200; 400; 401; 403 |
+| `GET /api/centers` | `quan_ly`, `bgd`, `marketing` | Danh sách trung tâm cho bộ lọc (quản lý chỉ thấy trung tâm mình) | 200; 401; 403 |
 
-Ghi chú: số điện thoại chỉ xuất hiện ở danh sách dành cho Quản lý/BGĐ, nên được trả đầy đủ; endpoint công khai không bao giờ trả thông tin khách. Khi làm báo cáo cho Marketing (UC5) sẽ chỉ trả số liệu tổng hợp.
+Thân phản hồi của `GET /api/reports/csat`:
+
+```json
+{ "data": { "filters": {"center_id": null, "center_name": "Toàn hệ thống", "from": "2026-01-01", "to": "2026-12-31"},
+            "total_responses": 28, "csat_percent": 89.3, "avg_score": 4.5,
+            "high_score_count": 25, "low_score_count": 3,
+            "distribution": {"1":2,"2":1,"3":0,"4":4,"5":21},
+            "warning": null, "min_sample": 5,
+            "by_technician": [ {"technician_id": 12, "full_name": "…", "total_responses": 8,
+                                "csat_percent": 75, "avg_score": 4, "low_score_count": 1, "warning": null} ] },
+  "meta": { "generated_at": "2026-10-10T08:00:00.000Z" } }
+```
+
+Quy ước số liệu: `csat_percent` làm tròn 1 chữ số (BS-01); **không có phản hồi** thì `csat_percent = null` kèm `warning = "CHUA_CO_PHAN_HOI"` (không bao giờ hiển thị 0%), dưới 5 phản hồi thì vẫn trả số kèm `warning = "MAU_CHUA_DU_TIN_CAY"` (BS-02).
+
+Ghi chú: số điện thoại chỉ xuất hiện ở danh sách dành cho Quản lý/BGĐ nên được trả đầy đủ (QT-15); endpoint công khai không bao giờ trả thông tin khách. Vai trò Marketing nhận `by_technician = null` và không được lọc theo trung tâm (BS-05).

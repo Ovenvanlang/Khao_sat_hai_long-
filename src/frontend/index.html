@@ -3,11 +3,43 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Khảo sát hài lòng – Mekong Mobile</title>
+  <title>Khảo sát hài lòng CSAT – Smart CRM Mekong Mobile</title>
+  <link rel="stylesheet" href="assets/giao-dien.css">
 </head>
-<body>
-  <!-- Frontend (form khảo sát + dashboard) sẽ làm ở buổi 9–10. Hiện chỉ là chỗ giữ chỗ. -->
-  <h1>Khảo sát hài lòng – Mekong Mobile</h1>
-  <p>API đang chạy. Xem README mục 5 để thử các endpoint. Frontend nằm ở src/frontend/.</p>
+<body class="trang-khach">
+  <div class="phieu" style="max-width: 720px">
+    <div class="phieu__dau">MEKONG MOBILE</div>
+    <div class="phieu__than">
+      <h1 class="phieu__ten">Khảo sát hài lòng CSAT (luồng L8)</h1>
+      <p class="phieu__phu">Chuyên đề tốt nghiệp 1 · PHOUTTHAVONG Khanxay – 237480201IS10 · GVHD: ThS. Nguyễn Minh Tân</p>
+
+      <div class="the-phieu">
+        <div class="the-phieu__nhan">Màn hình 1 · khách hàng</div>
+        <div class="the-phieu__dong"><b>Form khảo sát</b> – chấm điểm 1–5 và nhận xét, không cần đăng nhập (UC2).</div>
+        <p style="margin:8px 0 0"><a href="khao-sat.html">Mở form khảo sát →</a></p>
+      </div>
+
+      <div class="the-phieu">
+        <div class="the-phieu__nhan">Màn hình 2 · quản lý, ban giám đốc, marketing</div>
+        <div class="the-phieu__dong"><b>Báo cáo CSAT</b> – chỉ số hài lòng, phân bố điểm, bảng theo kỹ thuật viên (UC3, UC4).</div>
+        <p style="margin:8px 0 0"><a href="bao-cao-csat.html">Xem báo cáo →</a></p>
+      </div>
+
+      <div class="the-phieu">
+        <div class="the-phieu__nhan">Màn hình 3 · quản lý, ban giám đốc, marketing</div>
+        <div class="the-phieu__dong"><b>Xu hướng &amp; phản hồi điểm thấp</b> – biến động theo tháng/quý và danh sách điểm ≤ 2 (UC5, UC6).</div>
+        <p style="margin:8px 0 0"><a href="xu-huong.html">Xem xu hướng →</a></p>
+      </div>
+
+      <div class="ghi-chu ghi-chu--xanh">
+        <strong>Tài khoản demo (mật khẩu lấy từ DEMO_PASSWORD trong .env)</strong>
+        <p>• <b>quanly.hcm01</b> – quản lý trung tâm: chỉ thấy dữ liệu trung tâm mình (QT-14)</p>
+        <p>• <b>bgd</b> – ban giám đốc: xem toàn hệ thống</p>
+        <p>• <b>marketing</b> – chỉ xem số liệu tổng hợp (BS-05)</p>
+        <p>• <b>hethong</b> – tác nhân hệ thống: tạo khảo sát cho phiếu ĐÃ ĐÓNG (UC1)</p>
+      </div>
+      <p style="margin:14px 0 0"><a href="dang-nhap.html">Đăng nhập →</a></p>
+    </div>
+  </div>
 </body>
 </html>

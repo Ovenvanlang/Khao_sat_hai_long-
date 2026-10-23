@@ -1,19 +1,23 @@
 // Lớp repository: CHỈ chứa SQL (câu lệnh tham số hóa, không nối chuỗi từ dữ liệu người dùng).
+// Form công khai: chỉ thông tin phiếu, KHÔNG có thông tin khách hàng.
 const PUBLIC_SELECT = `
-  SELECT s.response_id, s.ticket_id, t.ticket_code, t.center_id, sc.center_name,
+  SELECT s.response_id, s.ticket_id, t.ticket_code, t.center_id, sc.center_name, t.closed_at,
          s.status, s.sent_at, s.score, s.comment, s.responded_at
   FROM survey_response s
   JOIN ticket t          ON t.ticket_id  = s.ticket_id
   JOIN service_center sc ON sc.center_id = t.center_id`;
 
+// Danh sách cho nhân viên: thêm kỹ thuật viên phụ trách và thông tin liên hệ khách (QT-15).
 const STAFF_SELECT = `
-  SELECT s.response_id, s.ticket_id, t.ticket_code, t.center_id, sc.center_name,
-         t.technician_id, c.full_name AS customer_name, c.phone AS customer_phone,
+  SELECT s.response_id, s.ticket_id, t.ticket_code, t.center_id, sc.center_name, t.closed_at,
+         t.technician_id, tech.full_name AS technician_name,
+         c.full_name AS customer_name, c.phone AS customer_phone,
          s.status, s.sent_at, s.score, s.comment, s.responded_at
   FROM survey_response s
   JOIN ticket t          ON t.ticket_id   = s.ticket_id
   JOIN service_center sc ON sc.center_id  = t.center_id
-  JOIN customer c        ON c.customer_id = t.customer_id`;
+  JOIN customer c        ON c.customer_id = t.customer_id
+  LEFT JOIN technician tech ON tech.technician_id = t.technician_id`;
 
 function createSurveyRepository(db) {
   const insert = db.prepare(

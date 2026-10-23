@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Khảo sát hài lòng – Mekong Mobile</title>
+  <link rel="stylesheet" href="assets/giao-dien.css">
+</head>
+<body class="trang-khach">
+  <div class="phieu">
+    <div class="phieu__dau">MEKONG MOBILE</div>
+    <div class="phieu__than">
+      <h1 class="phieu__ten">Khảo sát hài lòng</h1>
+      <p class="phieu__phu">Cảm ơn bạn đã sử dụng dịch vụ bảo hành</p>
+
+      <!-- Liên kết gửi cho khách có dạng khao-sat.html?ticket=231; ô dưới đây để mở thủ công khi demo -->
+      <form id="form-tim" class="bo-loc" novalidate>
+        <div class="truong">
+          <label for="ticket">Mã phiếu (ticket_id)</label>
+          <input id="ticket" name="ticket" inputmode="numeric" placeholder="ví dụ: 231">
+        </div>
+        <button class="nut-vien" type="submit">Mở khảo sát</button>
+      </form>
+
+      <section id="vung-khao-sat" data-state="idle"></section>
+    </div>
+  </div>
+  <script type="module" src="pages/khao-sat.page.mjs"></script>
+</body>
+</html>

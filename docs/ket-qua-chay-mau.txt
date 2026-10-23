@@ -1,38 +1,110 @@
-=== KỊCH BẢN KIỂM THỬ THỦ CÔNG (seed=42) — phiếu đã đóng chưa khảo sát: #149, phiếu chưa đóng: #5 ===
+KẾT QUẢ CHẠY LUỒNG END-TO-END – Buổi 10 (Sprint 2)
+Ngày chạy: 2026-10-23 16:15 UTC  ·  Node v22.22.0
 
-# 1. Hệ thống tạo khảo sát cho phiếu ĐÃ ĐÓNG (UC1) -> 201
-  HTTP 201  {"data":{"response_id":72,"ticket_id":149,"ticket_code":"BH000149/2026","center_id":1,"center_name":"HCM-01","status":"DA_GUI","sent_at":"2026-10-23T07:19:58.941Z","score":null,"comment":null,"responded_at":null,"low_score":false}}
+############ LẦN 1: dữ liệu mô phỏng tái lập (npm run db:setup, seed=42) ############
 
-# 2. Tạo lần 2 cho cùng phiếu (QT-10) -> 409 DA_KHAO_SAT
-  HTTP 409  {"error":"DA_KHAO_SAT","message":"Mỗi phiếu chỉ khảo sát một lần (QT-10)"}
 
-# 3. Phiếu CHƯA đóng (QT-10) -> 409 PHIEU_CHUA_DONG
-  HTTP 409  {"error":"PHIEU_CHUA_DONG","message":"Chỉ khảo sát phiếu ở trạng thái ĐÃ ĐÓNG (QT-10)"}
 
-# 4. Khách (không có vai trò) cố tạo khảo sát -> 403 KHONG_DU_QUYEN
-  HTTP 403  {"error":"KHONG_DU_QUYEN","message":"Vai trò khach_hang không có quyền"}
+===== BƯỚC 1. Đăng nhập 4 vai trò (POST /api/auth/login)
+  ✓ hethong đăng nhập -> 200, vai trò he_thong
+  ✓ quanly.hcm01 đăng nhập -> 200, vai trò quan_ly
+  ✓ bgd đăng nhập -> 200, vai trò bgd
+  ✓ marketing đăng nhập -> 200, vai trò marketing
+  ✓ Mật khẩu sai -> 401 SAI_TAI_KHOAN_HOAC_MAT_KHAU
+  ✓ Gọi báo cáo khi chưa đăng nhập -> 401 CHUA_DANG_NHAP
 
-# 5. Khách gửi điểm 9 -> 400 DU_LIEU_KHONG_HOP_LE
-  HTTP 400  {"error":"DU_LIEU_KHONG_HOP_LE","message":"score phải là số nguyên từ 1 đến 5"}
+===== BƯỚC 2. UC1 – hệ thống tạo khảo sát cho một phiếu ĐÃ ĐÓNG chưa có khảo sát
+  ✓ Tìm được phiếu ĐÃ ĐÓNG chưa khảo sát: BH000052/2026 (trung tâm 1)
+  INPUT: {"ticket_id":52}
+  OUTPUT: {"response_id":72,"ticket_id":52,"ticket_code":"BH000052/2026","center_id":1,"center_name":"HCM-01","closed_at":"2026-06-26T08:24:21.841Z","status":"DA_GUI","sent_at":"2026-10-23T16:15:44.240Z","score":null,"comment":null,"responded_at":null,"low_score":false}
+  ✓ Tạo khảo sát -> 201, trạng thái DA_GUI
+  ✓ QT-10: tạo lần hai -> 409 DA_KHAO_SAT
 
-# 6. Khách gửi điểm 2 + nhận xét (UC2) -> 200, low_score=true (BS-03)
-  HTTP 200  {"data":{"response_id":72,"ticket_id":149,"ticket_code":"BH000149/2026","center_id":1,"center_name":"HCM-01","status":"DA_TRA_LOI","sent_at":"2026-10-23T07:19:58.941Z","score":2,"comment":"Sửa lâu, hẹn hai lần mới xong","responded_at":"2026-10-23T07:19:59.022Z","low_score":true}}
+===== BƯỚC 3. UC2 – khách hàng mở liên kết và gửi điểm (không cần đăng nhập)
+  ✓ Form công khai không chứa thông tin khách hàng
+  INPUT: {"score":2,"comment":"Sửa lâu, hẹn hai lần mới xong"}
+  OUTPUT: {"response_id":72,"ticket_id":52,"ticket_code":"BH000052/2026","center_id":1,"center_name":"HCM-01","closed_at":"2026-06-26T08:24:21.841Z","status":"DA_TRA_LOI","sent_at":"2026-10-23T16:15:44.240Z","score":2,"comment":"Sửa lâu, hẹn hai lần mới xong","responded_at":"2026-10-23T16:15:44.252Z","low_score":true}
+  ✓ Gửi phản hồi -> 200, DA_TRA_LOI, BS-03 đánh dấu điểm thấp
+  ✓ QT-10: gửi lần hai -> 409 DA_KHAO_SAT
+  ✓ Điểm 6 (ngoài 1–5) -> 400 DU_LIEU_KHONG_HOP_LE
 
-# 7. Khách gửi lần 2 (QT-10) -> 409, điểm cũ được giữ
-  HTTP 409  {"error":"DA_KHAO_SAT","message":"Mỗi phiếu chỉ khảo sát một lần (QT-10)"}
+===== BƯỚC 4. UC3/UC4 – báo cáo CSAT toàn hệ thống và theo kỹ thuật viên (ban giám đốc)
+  INPUT: from=2026-01-01&to=2026-12-31
+  OUTPUT: {"total_responses":30,"csat_percent":90,"avg_score":4.43,"low_score_count":3,"distribution":{"1":2,"2":1,"3":0,"4":6,"5":21},"warning":null}
+  ✓ BS-01: CSAT% = 27/30 = 90%
+  Top KTV: ["Trần Thị Minh: 100% (3 phản hồi)","Bùi Minh Dũng: 100% (2 phản hồi)","Ngô Quốc Hải: 100% (2 phản hồi)"]
+  ✓ UC4: có bảng theo kỹ thuật viên (20 người)
+  ✓ BS-02: kỹ thuật viên có dưới 5 phản hồi được gắn cảnh báo MAU_CHUA_DU_TIN_CAY
 
-# 8. Quản lý HCM-01 lọc điểm thấp (score_max=2) -> chỉ thấy trung tâm của mình (QT-14)
-  meta: {'page': 1, 'limit': 20, 'total': 1}
-   - BH000149/2026 HCM-01 điểm 2
+===== BƯỚC 5. UC5 – xu hướng CSAT theo quý (Marketing, chỉ số liệu tổng hợp)
+  OUTPUT: ["Q1/2026: 100% (6 phản hồi)","Q2/2026: 87.5% (8 phản hồi)","Q3/2026: 92.3% (13 phản hồi)","Q4/2026: 66.7% (3 phản hồi)"]
+  ✓ Trả về các kỳ có phản hồi (không nội suy kỳ trống)
+  ✓ BS-05: Marketing lọc theo trung tâm -> 403 KHONG_DU_QUYEN
+  ✓ BS-05: Marketing không nhận bảng theo kỹ thuật viên
 
-# 9. Quản lý HCM-01 xin dữ liệu trung tâm 2 -> 403 (QT-14)
-  HTTP 403  {"error":"KHONG_DU_QUYEN","message":"Không được xem dữ liệu trung tâm khác (QT-14)"}
+===== BƯỚC 6. UC6 – danh sách phản hồi điểm thấp và kiểm tra QT-14/QT-15 (quản lý trung tâm)
+  OUTPUT: ["BH000052/2026 | HCM-01 | điểm 2 | 0956100138"]
+  ✓ BS-03: 1 dòng, mọi dòng đều có điểm <= 2
+  ✓ Phản hồi vừa gửi ở bước 3 (BH000052/2026) xuất hiện trong danh sách điểm thấp
+  ✓ QT-14: chỉ có dữ liệu trung tâm 1
+  ✓ QT-15: quản lý thấy số điện thoại đầy đủ (không che bằng dấu *)
+  ✓ QT-14: quản lý xem trung tâm khác -> 403
+  ✓ Marketing xem danh sách phản hồi chi tiết -> 403
 
-# 10a. Xóa mềm (QT-13) -> 200
-  HTTP 200  {"data":{"ticket_id":149,"deleted":true}}
+===== BƯỚC 7. Kiểm tra token: token bị sửa và token hết hạn đều phải bị từ chối
+  ✓ Token bị sửa chữ ký -> 401 TOKEN_KHONG_HOP_LE
+  ✓ Token hết hạn -> 401 TOKEN_KHONG_HOP_LE
 
-# 10b. Đọc lại sau khi xóa mềm -> 404
-  HTTP 404  {"error":"KHONG_TIM_THAY","message":"Khảo sát không khả dụng"}
+== TOÀN BỘ LUỒNG CHẠY XONG, KHÔNG CÓ BƯỚC NÀO THẤT BẠI ==
 
-# 10c. Bản ghi vẫn còn trong CSDL (không xóa vật lý):
-   {"ticket_id":149,"status":"DA_TRA_LOI","score":2,"is_deleted":1}
+############ LẦN 2: dữ liệu nạp từ tệp CSV (npm run import -- <thư mục>) ############
+
+
+
+===== BƯỚC 1. Đăng nhập 4 vai trò (POST /api/auth/login)
+  ✓ hethong đăng nhập -> 200, vai trò he_thong
+  ✓ quanly.hcm01 đăng nhập -> 200, vai trò quan_ly
+  ✓ bgd đăng nhập -> 200, vai trò bgd
+  ✓ marketing đăng nhập -> 200, vai trò marketing
+  ✓ Mật khẩu sai -> 401 SAI_TAI_KHOAN_HOAC_MAT_KHAU
+  ✓ Gọi báo cáo khi chưa đăng nhập -> 401 CHUA_DANG_NHAP
+
+===== BƯỚC 2. UC1 – hệ thống tạo khảo sát cho một phiếu ĐÃ ĐÓNG chưa có khảo sát
+  (bỏ qua UC1: dữ liệu đã tạo khảo sát cho mọi phiếu đóng; dùng phiếu BH000004/2026 đang chờ trả lời)
+
+===== BƯỚC 3. UC2 – khách hàng mở liên kết và gửi điểm (không cần đăng nhập)
+  ✓ Form công khai không chứa thông tin khách hàng
+  INPUT: {"score":2,"comment":"Sửa lâu, hẹn hai lần mới xong"}
+  OUTPUT: {"response_id":3,"ticket_id":4,"ticket_code":"BH000004/2026","center_id":2,"center_name":"CT-01","closed_at":"2026-07-20T16:45:00","status":"DA_TRA_LOI","sent_at":"2026-07-20T17:00:00","score":2,"comment":"Sửa lâu, hẹn hai lần mới xong","responded_at":"2026-10-23T16:15:45.140Z","low_score":true}
+  ✓ Gửi phản hồi -> 200, DA_TRA_LOI, BS-03 đánh dấu điểm thấp
+  ✓ QT-10: gửi lần hai -> 409 DA_KHAO_SAT
+  ✓ Điểm 6 (ngoài 1–5) -> 400 DU_LIEU_KHONG_HOP_LE
+
+===== BƯỚC 4. UC3/UC4 – báo cáo CSAT toàn hệ thống và theo kỹ thuật viên (ban giám đốc)
+  INPUT: from=2026-01-01&to=2026-12-31
+  OUTPUT: {"total_responses":3,"csat_percent":33.3,"avg_score":3,"low_score_count":2,"distribution":{"1":0,"2":2,"3":0,"4":0,"5":1},"warning":"MAU_CHUA_DU_TIN_CAY"}
+  ✓ BS-01: CSAT% = 1/3 = 33.3%
+  Top KTV: ["Nguyễn Văn An: 100% (1 phản hồi)","Trần Thị Lan: 0% (1 phản hồi)","Lê Minh Hùng: 0% (1 phản hồi)"]
+  ✓ UC4: có bảng theo kỹ thuật viên (3 người)
+  ✓ BS-02: kỹ thuật viên có dưới 5 phản hồi được gắn cảnh báo MAU_CHUA_DU_TIN_CAY
+
+===== BƯỚC 5. UC5 – xu hướng CSAT theo quý (Marketing, chỉ số liệu tổng hợp)
+  OUTPUT: ["Q1/2026: 100% (1 phản hồi)","Q2/2026: 0% (1 phản hồi)","Q4/2026: 0% (1 phản hồi)"]
+  ✓ Trả về các kỳ có phản hồi (không nội suy kỳ trống)
+  ✓ BS-05: Marketing lọc theo trung tâm -> 403 KHONG_DU_QUYEN
+  ✓ BS-05: Marketing không nhận bảng theo kỹ thuật viên
+
+===== BƯỚC 6. UC6 – danh sách phản hồi điểm thấp và kiểm tra QT-14/QT-15 (quản lý trung tâm)
+  OUTPUT: ["BH000002/2026 | HCM-01 | điểm 2 | KH00000102"]
+  ✓ BS-03: 1 dòng, mọi dòng đều có điểm <= 2
+  ✓ Phản hồi vừa gửi ở bước 3 (BH000004/2026) xuất hiện trong danh sách điểm thấp của ban giám đốc
+  ✓ QT-14: chỉ có dữ liệu trung tâm 1
+  ✓ QT-15: quản lý thấy số điện thoại đầy đủ (không che bằng dấu *)
+  ✓ QT-14: quản lý xem trung tâm khác -> 403
+  ✓ Marketing xem danh sách phản hồi chi tiết -> 403
+
+===== BƯỚC 7. Kiểm tra token: token bị sửa và token hết hạn đều phải bị từ chối
+  ✓ Token bị sửa chữ ký -> 401 TOKEN_KHONG_HOP_LE
+  ✓ Token hết hạn -> 401 TOKEN_KHONG_HOP_LE
+
+== TOÀN BỘ LUỒNG CHẠY XONG, KHÔNG CÓ BƯỚC NÀO THẤT BẠI ==

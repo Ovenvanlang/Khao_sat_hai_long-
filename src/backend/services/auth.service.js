@@ -1,0 +1,109 @@
+// Lớp service: đăng nhập và token. Chỉ dùng node:crypto, KHÔNG thêm thư viện ngoài.
+//
+// Mật khẩu: băm bằng scrypt + muối ngẫu nhiên, lưu dạng "scrypt$<muối hex>$<băm hex>".
+// Token:    cấu trúc 3 phần như JWT (header.payload.chữ ký) ký bằng HMAC-SHA256.
+//           Đây KHÔNG phải SSO của công ty (ngoài phạm vi – SRS mục 1.3), chỉ đủ để
+//           phân quyền thật cho QT-14/QT-15 thay cho header mô phỏng ở buổi 8 (TD-14).
+const crypto = require('node:crypto');
+const E = require('../errors');
+
+const SALT_BYTES = 16;
+const KEY_BYTES = 32;
+const HEADER_B64 = base64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+
+function base64url(input) {
+  return Buffer.from(input).toString('base64url');
+}
+
+/** So sánh hai chuỗi bằng thời gian hằng định để không lộ thông tin qua thời gian phản hồi. */
+function safeEqual(a, b) {
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ba.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ba, bb);
+}
+
+function hashPassword(plain) {
+  const salt = crypto.randomBytes(SALT_BYTES);
+  const key = crypto.scryptSync(plain, salt, KEY_BYTES);
+  return `scrypt$${salt.toString('hex')}$${key.toString('hex')}`;
+}
+
+function verifyPassword(plain, stored) {
+  const parts = String(stored || '').split('$');
+  if (parts.length !== 3 || parts[0] !== 'scrypt') return false;
+  const salt = Buffer.from(parts[1], 'hex');
+  const key = crypto.scryptSync(plain, salt, KEY_BYTES).toString('hex');
+  return safeEqual(key, parts[2]);
+}
+
+function createAuthService({ userRepo, secret, ttlHours = 8, now = () => new Date() }) {
+  if (!secret) throw new Error('Thiếu AUTH_SECRET: không thể ký token đăng nhập');
+
+  const sign = (data) => crypto.createHmac('sha256', secret).update(data).digest('base64url');
+
+  function issueToken(user) {
+    const iat = Math.floor(now().getTime() / 1000);
+    const payload = {
+      sub: user.user_id,
+      name: user.full_name,
+      role: user.role,
+      center_id: user.center_id ?? null,
+      iat,
+      exp: iat + Math.round(ttlHours * 3600),
+    };
+    const body = `${HEADER_B64}.${base64url(JSON.stringify(payload))}`;
+    return { token: `${body}.${sign(body)}`, expires_at: new Date(payload.exp * 1000).toISOString() };
+  }
+
+  /** Giải mã + kiểm tra token. Mọi trường hợp sai đều trả cùng một lỗi 401 (không nói rõ sai ở đâu). */
+  function verifyToken(token) {
+    const parts = String(token || '').split('.');
+    if (parts.length !== 3) throw E.invalidToken();
+    const [header, payloadB64, signature] = parts;
+    if (header !== HEADER_B64) throw E.invalidToken();                    // chặn alg=none / alg khác
+    if (!safeEqual(signature, sign(`${header}.${payloadB64}`))) throw E.invalidToken();
+    let payload;
+    try {
+      payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
+    } catch {
+      throw E.invalidToken();
+    }
+    if (!payload || typeof payload.exp !== 'number') throw E.invalidToken();
+    if (payload.exp * 1000 <= now().getTime()) throw E.invalidToken();     // hết hạn
+    return {
+      userId: payload.sub,
+      name: payload.name,
+      role: payload.role,
+      centerId: payload.center_id ?? null,
+    };
+  }
+
+  return {
+    hashPassword,
+    verifyPassword,
+    issueToken,
+    verifyToken,
+
+    /** UC0 – đăng nhập. Luôn tính băm (kể cả khi không có tài khoản) để thời gian phản hồi như nhau. */
+    login(body) {
+      const username = body && typeof body.username === 'string' ? body.username.trim() : '';
+      const password = body && typeof body.password === 'string' ? body.password : '';
+      if (!username || !password) throw E.invalid('Cần cả username và password');
+
+      const user = userRepo.findByUsername(username);
+      const stored = user ? user.password_hash : `scrypt$${'0'.repeat(32)}$${'0'.repeat(64)}`;
+      const ok = verifyPassword(password, stored);
+      if (!user || !ok || !user.is_active) throw E.badCredentials();
+
+      const { token, expires_at } = issueToken(user);
+      return {
+        token,
+        expires_at,
+        user: { username: user.username, full_name: user.full_name, role: user.role, center_id: user.center_id ?? null },
+      };
+    },
+  };
+}
+
+module.exports = { createAuthService, hashPassword, verifyPassword };

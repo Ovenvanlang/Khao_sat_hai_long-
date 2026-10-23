@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Báo cáo CSAT – Smart CRM Mekong Mobile</title>
+  <link rel="stylesheet" href="assets/giao-dien.css">
+</head>
+<body>
+  <div class="bo-cuc">
+    <aside id="thanh-ben"></aside>
+
+    <main class="noi-dung">
+      <h1 class="tieu-de-trang">Báo cáo CSAT</h1>
+      <p class="tieu-de-phu">Chỉ số hài lòng sau bảo hành · phạm vi: <span id="pham-vi">đang tải…</span></p>
+
+      <form id="form-loc" class="bo-loc">
+        <div class="truong">
+          <label for="center">Trung tâm</label>
+          <select id="center" name="center"><option value="">Tất cả trung tâm</option></select>
+        </div>
+        <div class="truong">
+          <label for="from">Từ ngày</label>
+          <input type="date" id="from" name="from">
+        </div>
+        <div class="truong">
+          <label for="to">Đến ngày</label>
+          <input type="date" id="to" name="to">
+        </div>
+        <button class="nut-do" type="submit">Áp dụng</button>
+      </form>
+
+      <section id="tong-quan" data-state="idle"></section>
+
+      <section class="cot-doi">
+        <div class="khoi">
+          <div class="khoi__dau"><span class="khoi__ten">Phân bố điểm (1–5)</span></div>
+          <div id="vung-phan-bo" data-state="idle"></div>
+        </div>
+        <div class="khoi" id="ky-thuat-vien">
+          <div class="khoi__dau"><span class="khoi__ten">CSAT theo kỹ thuật viên (xếp giảm dần)</span></div>
+          <div id="vung-ktv" data-state="idle"></div>
+        </div>
+      </section>
+
+      <div class="ghi-chu ghi-chu--xanh">
+        <strong>Ghi chú thiết kế</strong>
+        <p>• Quản lý trung tâm chỉ chọn được trung tâm của mình; Ban giám đốc chọn được mọi trung tâm (QT-14).</p>
+        <p>• Hết dữ liệu trong khoảng đã chọn: hiện "Chưa có phản hồi" thay vì 0%.</p>
+      </div>
+    </main>
+  </div>
+
+  <script src="/vendor/chartjs/chart.umd.js"></script>
+  <script type="module" src="pages/bao-cao-csat.page.mjs"></script>
+</body>
+</html>

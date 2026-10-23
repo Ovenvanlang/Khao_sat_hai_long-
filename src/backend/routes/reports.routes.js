@@ -1,12 +1,30 @@
-// Khung cho UC3–UC6 (báo cáo CSAT). Trả 501 cho tới khi hiện thực ở các buổi sau.
+// Lớp routes cho báo cáo CSAT (UC3–UC6). Nhận/trả HTTP, gọi service.
 const { Router } = require('express');
 const { requireRole } = require('../middleware/access');
 
 function createReportRoutes(service) {
   const r = Router();
-  r.get('/csat', requireRole('quan_ly', 'bgd', 'marketing'), (req, res) => res.json(service.csat(req.user, req.query)));
-  r.get('/low-score', requireRole('quan_ly', 'bgd'), (req, res) => res.json(service.lowScore(req.user, req.query)));
+
+  // UC3 + UC4: CSAT theo trung tâm và theo kỹ thuật viên (Marketing chỉ nhận số tổng hợp – BS-05)
+  r.get('/csat', requireRole('quan_ly', 'bgd', 'marketing'), (req, res) =>
+    res.json(service.csat(req.user, req.query)));
+
+  // UC5: xu hướng theo tháng/quý
+  r.get('/trend', requireRole('quan_ly', 'bgd', 'marketing'), (req, res) =>
+    res.json(service.trend(req.user, req.query)));
+
+  // UC6: danh sách phản hồi điểm thấp (<= 2)
+  r.get('/low-score', requireRole('quan_ly', 'bgd'), (req, res) =>
+    res.json(service.lowScore(req.user, req.query)));
+
   return r;
 }
 
-module.exports = { createReportRoutes };
+/** Danh sách trung tâm cho bộ lọc trên giao diện. */
+function createCenterRoutes(service) {
+  const r = Router();
+  r.get('/', requireRole('quan_ly', 'bgd', 'marketing'), (req, res) => res.json(service.listCenters(req.user)));
+  return r;
+}
+
+module.exports = { createReportRoutes, createCenterRoutes };

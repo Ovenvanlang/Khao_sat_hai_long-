@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Xu hướng &amp; phản hồi điểm thấp – Smart CRM Mekong Mobile</title>
+  <link rel="stylesheet" href="assets/giao-dien.css">
+</head>
+<body>
+  <div class="bo-cuc">
+    <aside id="thanh-ben"></aside>
+
+    <main class="noi-dung">
+      <h1 class="tieu-de-trang">Xu hướng &amp; phản hồi điểm thấp</h1>
+      <p class="tieu-de-phu">Theo dõi biến động hài lòng theo thời gian và xử lý phản hồi tiêu cực</p>
+
+      <form id="form-loc" class="bo-loc">
+        <div class="truong">
+          <label for="center">Trung tâm</label>
+          <select id="center" name="center"><option value="">Tất cả trung tâm</option></select>
+        </div>
+        <div class="truong">
+          <label for="granularity">Chu kỳ</label>
+          <select id="granularity" name="granularity">
+            <option value="month">Theo tháng</option>
+            <option value="quarter">Theo quý</option>
+          </select>
+        </div>
+        <div class="truong">
+          <label for="year">Năm</label>
+          <select id="year" name="year"></select>
+        </div>
+        <button class="nut-do" type="submit">Áp dụng</button>
+      </form>
+
+      <section class="khoi" id="xu-huong">
+        <div class="khoi__dau">
+          <span class="khoi__ten" id="ten-bieu-do">CSAT theo tháng (%)</span>
+          <span class="khoi__ghi-chu" id="ghi-chu-bieu-do">Tháng không có dữ liệu để trống, không nội suy</span>
+        </div>
+        <div id="vung-xu-huong" data-state="idle"></div>
+      </section>
+
+      <section class="khoi" id="diem-thap">
+        <div class="khoi__dau"><span class="khoi__ten">Phản hồi điểm thấp (≤ 2) – mới nhất trước</span></div>
+        <div id="vung-diem-thap" data-state="idle"></div>
+        <div class="ghi-chu ghi-chu--xanh" style="margin-top:16px">
+          <p>Danh sách chỉ dành cho Quản lý và Ban giám đốc nên số điện thoại hiển thị đầy đủ (QT-15).</p>
+          <p>Phản hồi mới ≤ 2 điểm tạo thông báo cho Quản lý trung tâm (UC7 – chưa hiện thực, xem TD-16).</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/vendor/chartjs/chart.umd.js"></script>
+  <script type="module" src="pages/xu-huong.page.mjs"></script>
+</body>
+</html>

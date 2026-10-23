@@ -88,3 +88,34 @@ File này được nối tiếp ở BT3 khi nhận phản hồi BT2.
 - Quyết định: **SỬA** cấu trúc thư mục; **GIỮ NGUYÊN** thiết kế các lớp bên trong
 - Lý do: sơ đồ kiến trúc BT1 có hai khối lớn là Frontend và Backend API; cấu trúc cũ để backend ở `src/` còn frontend ở `public/` nên chưa khớp trực tiếp. Frontend vẫn là HTML/JS tĩnh (lập luận 4, BT1 Chương 3) nên được Express phục vụ chung cổng, không cần CORS và không cần máy chủ thứ hai. Nếu sau này dùng React/Vue thì tách `frontend/` thành dự án riêng có `package.json` và ghi lại ở TD mới.
 - Ảnh hưởng: chuyển toàn bộ mã backend vào `src/backend/`, `public/` thành `src/frontend/`; sửa đường dẫn trong `package.json`, `app.js` (thư mục tĩnh), `tests/`, `commit-plan.sh`, README mục 4, `docs/anh-xa-kien-truc.md`, `docs/kien-truc_L8.drawio`. Không đổi hành vi: 18 test vẫn đạt.
+
+### TD-14 Thay vai trò mô phỏng bằng header bằng ĐĂNG NHẬP THẬT dùng token
+- Phản hồi của GV: không có (đề buổi 10 yêu cầu frontend có đăng nhập và xử lý 401).
+- Quyết định: **SỬA** TD-09 — header `X-Role` / `X-Center-Id` bị bỏ hoàn toàn.
+- Lý do: khi frontend chạy trên trình duyệt, ai cũng tự đặt được `X-Role: bgd` nên QT-14/QT-15 chỉ còn là hình thức. Nay có bảng `app_user` (migration 003), mật khẩu băm bằng scrypt kèm muối, token ký HMAC-SHA256 theo cấu trúc 3 phần như JWT, hạn 8 giờ. Chỉ dùng `node:crypto` nên không thêm thư viện. Đây **không** phải SSO của công ty (vẫn ngoài phạm vi, SRS mục 1.3).
+- Ảnh hưởng: thêm `services/auth.service.js`, `routes/auth.routes.js`, `repositories/user.repository.js`, migration `003_users.sql`; viết lại `middleware/access.js` (đọc Bearer, trả 401 `CHUA_DANG_NHAP` / `TOKEN_KHONG_HOP_LE`, 403 `KHONG_DU_QUYEN`); `seed.js` tạo 4 tài khoản demo với mật khẩu lấy từ `DEMO_PASSWORD`; toàn bộ test HTTP chuyển sang đăng nhập lấy token; README mục 3 và Phụ lục A của SRS cập nhật theo. Máy chủ **từ chối khởi động** nếu thiếu `AUTH_SECRET`.
+
+### TD-15 Ba màn hình của L8 không phải list/detail/intake như ví dụ của đề
+- Phản hồi của GV: không có (đề buổi 10 nêu ví dụ 3 màn hình "danh sách / chi tiết / nhập liệu" cho luồng phiếu bảo hành).
+- Quyết định: **SỬA** cách hiểu yêu cầu, **GIỮ NGUYÊN** số lượng tối thiểu 3 màn hình.
+- Lý do: L8 không có nghiệp vụ CRUD phiếu; màn hình tương ứng của luồng khảo sát là: (1) *nhập liệu* = form khảo sát khách hàng (UC2), (2) *danh sách/tổng hợp* = báo cáo CSAT kèm bảng kỹ thuật viên (UC3, UC4), (3) *chi tiết/lọc* = xu hướng theo thời gian và danh sách phản hồi điểm thấp (UC5, UC6). Thêm màn hình đăng nhập (bắt buộc theo đề) là 4.
+- Ảnh hưởng: `src/frontend/` có 4 trang; mỗi vùng dữ liệu bọc trong component `DataState`; `pages/` không gọi `fetch` (có test kiểm tra).
+
+### TD-16 Cắt UC7 (thông báo điểm thấp) khỏi phạm vi hiện tại
+- Phản hồi của GV: không có.
+- Quyết định: **CẮT** UC7 khỏi Sprint 2; giữ cờ `low_score` và danh sách điểm thấp.
+- Lý do: UC7 cần kênh gửi thật (email/Zalo OA) với tài khoản dịch vụ, hàng đợi gửi lại khi lỗi và chính sách chống gửi trùng — khối lượng này vượt thời lượng buổi 10 và không làm tăng giá trị kiểm chứng BS-01/BS-02. Quản lý vẫn phát hiện phản hồi điểm thấp ngay trên màn hình "Xu hướng & điểm thấp" (UC6), nên nhu cầu nghiệp vụ không bị bỏ trống, chỉ chậm hơn so với thông báo đẩy.
+- Ảnh hưởng: FR-07/US7 giữ ở mức SHOULD trong SRS nhưng đánh dấu chưa hiện thực; README mục 7 ghi rõ phần bị cắt và lý do.
+
+### TD-17 Script nhập CSV tách khỏi seed mô phỏng
+- Phản hồi của GV: không có (đề buổi 10 yêu cầu chạy trên dữ liệu mẫu thật).
+- Quyết định: **SỬA** TD-10 — bổ sung `src/backend/db/import-csv.js` (`npm run import -- data/raw`) thay vì sửa seed.
+- Lý do: giữ hai đường nạp dữ liệu tách bạch: seed mô phỏng (tái lập được, dùng khi chấm/thi lại) và nhập CSV thật từ LMS. Script tự khớp một số tên cột thường gặp, tạo khách tối thiểu khi thiếu `customers.csv`, bỏ qua và báo rõ dòng sai thay vì dừng giữa chừng.
+- Ảnh hưởng: thêm script và mục 6 của README; `data/` vẫn không commit. Nhật ký `docs/ket-qua-chay-mau.txt` ghi cả hai lần chạy: dữ liệu mô phỏng và dữ liệu nạp từ CSV.
+
+### TD-18 Giao diện dựng lại đúng bản thiết kế wireframe, bỏ khung CSS ngoài
+- Phản hồi của GV/chủ đồ án: "bắt buộc phải đúng theo bản thiết kế" (3 wireframe: form khảo sát, Báo cáo CSAT, Xu hướng & phản hồi điểm thấp).
+- Quyết định: **SỬA** toàn bộ lớp hiển thị; **GIỮ NGUYÊN** kiến trúc frontend (api/ – components/ – pages/).
+- Lý do: bản dựng trước dùng Bootstrap nên bố cục và màu sắc lệch khỏi thiết kế (không có thanh bên tối, thẻ KPI, nhãn số trên biểu đồ, nút điểm tròn). Nay `assets/giao-dien.css` tự định nghĩa bộ nhận diện (đỏ #d62828, thanh bên #1e1e1e, nền #eceff1), nên bỏ hẳn phụ thuộc `bootstrap`; chỉ còn Chart.js phục vụ cục bộ. Nhãn số trên biểu đồ vẽ bằng một plugin nhỏ tự viết thay vì thêm thư viện `chartjs-plugin-datalabels`.
+- Ảnh hưởng: viết lại `assets/giao-dien.css`, 4 tệp HTML, 3 tệp trong `pages/`; thêm `components/thanh-ben.mjs` (thanh bên 4 mục), `components/dinh-dang.mjs` (số và ngày kiểu Việt Nam: 90,0% · 4,43 · 07/10/2026), `components/bieu-do.mjs`; bỏ `components/thanh-dieu-huong.mjs` và route tĩnh `/vendor/bootstrap`. API bổ sung ba trường mà bản thiết kế cần: `closed_at` (dòng "đóng ngày" trên phiếu), `technician_name` (cột Kỹ thuật viên của bảng điểm thấp), `closed_tickets` (dòng "trên N phiếu đã đóng" ở thẻ KPI); `avg_score` làm tròn 2 chữ số để hiển thị đúng dạng 4,43. 40 test vẫn đạt.
+- Phần KHÔNG hiện thực theo thiết kế: dòng "Thiết bị: iPhone 15 Pro Max" trên thẻ phiếu — ERD của BT1 không có thực thể thiết bị; thêm cột chỉ để hiển thị sẽ lệch từ điển dữ liệu, nên để lại cho bản sau nếu nghiệp vụ cần.

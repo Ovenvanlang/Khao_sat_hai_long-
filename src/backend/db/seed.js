@@ -4,6 +4,25 @@
 //        npm run seed -- --reset (xóa dữ liệu rồi nạp lại)
 const SEED = 42;
 
+const { hashPassword } = require('../services/auth.service');
+const { createUserRepository } = require('../repositories/user.repository');
+
+/** Tạo 4 tài khoản DEMO (mỗi vai trò một tài khoản). Mật khẩu lấy từ DEMO_PASSWORD, chỉ lưu dạng băm. */
+function seedUsers(db, password) {
+  const userRepo = createUserRepository(db);
+  if (userRepo.count() > 0) return { skipped: true, accounts: [] };
+  const center = db.prepare('SELECT center_id, center_name FROM service_center ORDER BY center_id LIMIT 1').get();
+  if (!center) throw new Error('Cần nạp dữ liệu trung tâm trước khi tạo tài khoản');
+  const accounts = [
+    { username: 'hethong',      fullName: 'Tác nhân hệ thống',                   role: 'he_thong',  centerId: null },
+    { username: 'quanly.hcm01', fullName: `Quản lý trung tâm ${center.center_name}`, role: 'quan_ly', centerId: center.center_id },
+    { username: 'bgd',          fullName: 'Ban giám đốc',                        role: 'bgd',       centerId: null },
+    { username: 'marketing',    fullName: 'Phòng Marketing',                     role: 'marketing', centerId: null },
+  ];
+  for (const a of accounts) userRepo.insert({ ...a, passwordHash: hashPassword(password) });
+  return { skipped: false, accounts: accounts.map((a) => `${a.username} (${a.role})`) };
+}
+
 function mulberry32(a) {                       // bộ sinh số giả ngẫu nhiên có seed
   return () => {
     a |= 0; a = (a + 0x6d2b79f5) | 0;
@@ -83,7 +102,7 @@ function seed(db, { seedValue = SEED, reset = false } = {}) {
   return { skipped: false, ...run() };
 }
 
-module.exports = { seed, SEED };
+module.exports = { seed, seedUsers, SEED };
 
 if (require.main === module) {
   const { openDb } = require('./connection');
@@ -91,12 +110,17 @@ if (require.main === module) {
   const config = require('../config');
   const db = openDb(config.databaseFile);
   migrate(db);
-  const res = seed(db, { reset: process.argv.includes('--reset') });
+  const reset = process.argv.includes('--reset');
+  if (reset) db.exec('DELETE FROM app_user');
+  const res = seed(db, { reset });
   if (res.skipped) console.log('Đã có dữ liệu, bỏ qua. Dùng "npm run seed -- --reset" để nạp lại.');
   else {
     console.log(`Đã nạp dữ liệu mẫu (seed=${SEED}): phiếu đóng=${res.closed}, khảo sát đã tạo=${res.sent}, đã trả lời=${res.answered}`);
     for (const t of ['service_center', 'technician', 'customer', 'ticket', 'dim_date', 'survey_response'])
       console.log(`  ${t.padEnd(16)} ${db.prepare(`SELECT COUNT(*) n FROM ${t}`).get().n} dòng`);
   }
+  const users = seedUsers(db, config.demoPassword);
+  if (users.skipped) console.log('Tài khoản demo: đã có, bỏ qua.');
+  else console.log(`Đã tạo ${users.accounts.length} tài khoản demo: ${users.accounts.join(', ')} – mật khẩu lấy từ DEMO_PASSWORD trong .env`);
   db.close();
 }

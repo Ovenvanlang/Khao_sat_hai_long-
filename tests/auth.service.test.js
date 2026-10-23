@@ -1,0 +1,76 @@
+// Test lớp nghiệp vụ ĐĂNG NHẬP, độc lập với HTTP và CSDL (dùng repository giả).
+const { test } = require('node:test');
+const assert = require('node:assert');
+const { createAuthService, hashPassword, verifyPassword } = require('../src/backend/services/auth.service');
+
+const SECRET = 'khoa-test';
+const MAT_KHAU = 'Demo@2026';
+
+function setup({ ttlHours = 8, now = () => new Date('2026-10-10T08:00:00Z'), user } = {}) {
+  const macDinh = {
+    user_id: 7, username: 'ql1', full_name: 'Quản lý HCM-01',
+    role: 'quan_ly', center_id: 1, is_active: 1, password_hash: hashPassword(MAT_KHAU),
+  };
+  const taiKhoan = user === null ? null : { ...macDinh, ...user };
+  const userRepo = { findByUsername: (u) => (taiKhoan && taiKhoan.username === u ? taiKhoan : undefined) };
+  return { service: createAuthService({ userRepo, secret: SECRET, ttlHours, now }), taiKhoan };
+}
+
+test('Băm mật khẩu: mỗi lần băm ra chuỗi khác nhau (có muối) nhưng đều kiểm tra đúng', () => {
+  const a = hashPassword(MAT_KHAU);
+  const b = hashPassword(MAT_KHAU);
+  assert.notStrictEqual(a, b, 'hai lần băm phải khác nhau nhờ muối ngẫu nhiên');
+  assert.ok(a.startsWith('scrypt$'));
+  assert.ok(!a.includes(MAT_KHAU), 'không được lưu mật khẩu dạng rõ');
+  assert.strictEqual(verifyPassword(MAT_KHAU, a), true);
+  assert.strictEqual(verifyPassword('sai-mat-khau', a), false);
+  assert.strictEqual(verifyPassword(MAT_KHAU, 'chuoi-hong'), false, 'chuỗi băm hỏng -> false, không được ném lỗi');
+});
+
+test('Đăng nhập đúng -> token mang đúng vai trò và trung tâm (QT-14)', () => {
+  const { service } = setup();
+  const kq = service.login({ username: 'ql1', password: MAT_KHAU });
+  assert.strictEqual(kq.user.role, 'quan_ly');
+  assert.strictEqual(kq.user.center_id, 1);
+  const payload = service.verifyToken(kq.token);
+  assert.strictEqual(payload.role, 'quan_ly');
+  assert.strictEqual(payload.centerId, 1);
+  assert.strictEqual(payload.userId, 7);
+});
+
+test('Ngoại lệ đăng nhập: thiếu dữ liệu -> 400; sai mật khẩu / không có tài khoản / tài khoản khóa -> 401', () => {
+  const { service } = setup();
+  assert.throws(() => service.login({ username: 'ql1' }), (e) => e.status === 400 && e.code === 'DU_LIEU_KHONG_HOP_LE');
+  assert.throws(() => service.login({}), (e) => e.status === 400);
+  assert.throws(() => service.login({ username: 'ql1', password: 'sai' }),
+    (e) => e.status === 401 && e.code === 'SAI_TAI_KHOAN_HOAC_MAT_KHAU');
+  assert.throws(() => service.login({ username: 'khong-co', password: MAT_KHAU }),
+    (e) => e.code === 'SAI_TAI_KHOAN_HOAC_MAT_KHAU', 'không được lộ việc tài khoản có tồn tại hay không');
+  const khoa = setup({ user: { is_active: 0 } }).service;
+  assert.throws(() => khoa.login({ username: 'ql1', password: MAT_KHAU }), (e) => e.status === 401);
+});
+
+test('Token bị sửa chữ ký, sai định dạng hoặc đổi thuật toán đều bị từ chối (401)', () => {
+  const { service } = setup();
+  const token = service.login({ username: 'ql1', password: MAT_KHAU }).token;
+  const [header, payload, chuKy] = token.split('.');
+
+  const sai = (t) => assert.throws(() => service.verifyToken(t), (e) => e.status === 401 && e.code === 'TOKEN_KHONG_HOP_LE');
+  sai(`${header}.${payload}.${chuKy.slice(0, -2)}xx`);                 // sửa chữ ký
+  sai(`${header}.${Buffer.from('{"sub":1,"role":"bgd","exp":99999999999}').toString('base64url')}.${chuKy}`); // nâng quyền
+  sai(`${Buffer.from('{"alg":"none","typ":"JWT"}').toString('base64url')}.${payload}.`);                      // alg=none
+  sai('khong-phai-token');
+  sai('');
+});
+
+test('Biên hết hạn: còn 1 giây thì chấp nhận, qua đúng thời điểm hết hạn thì từ chối', () => {
+  let gio = new Date('2026-10-10T08:00:00Z');
+  const { service } = setup({ ttlHours: 1, now: () => gio });
+  const token = service.login({ username: 'ql1', password: MAT_KHAU }).token;
+
+  gio = new Date('2026-10-10T08:59:59Z');
+  assert.strictEqual(service.verifyToken(token).role, 'quan_ly', 'còn 1 giây vẫn phải dùng được');
+
+  gio = new Date('2026-10-10T09:00:00Z');
+  assert.throws(() => service.verifyToken(token), (e) => e.code === 'TOKEN_KHONG_HOP_LE', 'đúng giây hết hạn phải bị từ chối');
+});
