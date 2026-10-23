@@ -1,0 +1,38 @@
+=== KỊCH BẢN KIỂM THỬ THỦ CÔNG (seed=42) — phiếu đã đóng chưa khảo sát: #149, phiếu chưa đóng: #5 ===
+
+# 1. Hệ thống tạo khảo sát cho phiếu ĐÃ ĐÓNG (UC1) -> 201
+  HTTP 201  {"data":{"response_id":72,"ticket_id":149,"ticket_code":"BH000149/2026","center_id":1,"center_name":"HCM-01","status":"DA_GUI","sent_at":"2026-10-23T07:19:58.941Z","score":null,"comment":null,"responded_at":null,"low_score":false}}
+
+# 2. Tạo lần 2 cho cùng phiếu (QT-10) -> 409 DA_KHAO_SAT
+  HTTP 409  {"error":"DA_KHAO_SAT","message":"Mỗi phiếu chỉ khảo sát một lần (QT-10)"}
+
+# 3. Phiếu CHƯA đóng (QT-10) -> 409 PHIEU_CHUA_DONG
+  HTTP 409  {"error":"PHIEU_CHUA_DONG","message":"Chỉ khảo sát phiếu ở trạng thái ĐÃ ĐÓNG (QT-10)"}
+
+# 4. Khách (không có vai trò) cố tạo khảo sát -> 403 KHONG_DU_QUYEN
+  HTTP 403  {"error":"KHONG_DU_QUYEN","message":"Vai trò khach_hang không có quyền"}
+
+# 5. Khách gửi điểm 9 -> 400 DU_LIEU_KHONG_HOP_LE
+  HTTP 400  {"error":"DU_LIEU_KHONG_HOP_LE","message":"score phải là số nguyên từ 1 đến 5"}
+
+# 6. Khách gửi điểm 2 + nhận xét (UC2) -> 200, low_score=true (BS-03)
+  HTTP 200  {"data":{"response_id":72,"ticket_id":149,"ticket_code":"BH000149/2026","center_id":1,"center_name":"HCM-01","status":"DA_TRA_LOI","sent_at":"2026-10-23T07:19:58.941Z","score":2,"comment":"Sửa lâu, hẹn hai lần mới xong","responded_at":"2026-10-23T07:19:59.022Z","low_score":true}}
+
+# 7. Khách gửi lần 2 (QT-10) -> 409, điểm cũ được giữ
+  HTTP 409  {"error":"DA_KHAO_SAT","message":"Mỗi phiếu chỉ khảo sát một lần (QT-10)"}
+
+# 8. Quản lý HCM-01 lọc điểm thấp (score_max=2) -> chỉ thấy trung tâm của mình (QT-14)
+  meta: {'page': 1, 'limit': 20, 'total': 1}
+   - BH000149/2026 HCM-01 điểm 2
+
+# 9. Quản lý HCM-01 xin dữ liệu trung tâm 2 -> 403 (QT-14)
+  HTTP 403  {"error":"KHONG_DU_QUYEN","message":"Không được xem dữ liệu trung tâm khác (QT-14)"}
+
+# 10a. Xóa mềm (QT-13) -> 200
+  HTTP 200  {"data":{"ticket_id":149,"deleted":true}}
+
+# 10b. Đọc lại sau khi xóa mềm -> 404
+  HTTP 404  {"error":"KHONG_TIM_THAY","message":"Khảo sát không khả dụng"}
+
+# 10c. Bản ghi vẫn còn trong CSDL (không xóa vật lý):
+   {"ticket_id":149,"status":"DA_TRA_LOI","score":2,"is_deleted":1}

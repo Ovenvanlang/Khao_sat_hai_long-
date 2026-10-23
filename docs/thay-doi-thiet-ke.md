@@ -1,57 +1,90 @@
 # Nhật ký thay đổi thiết kế
 
-## Sau phản hồi Bài tập 1 (buổi 8, ngày 19/10/2026)
+Luồng L8 – Khảo sát hài lòng CSAT · Sinh viên: PHOUTTHAVONG Khanxay · MSSV 237480201IS10 · Track SE
 
-### TD-01 Cho phép score = NULL khi khảo sát chưa được trả lời
+Mỗi thay đổi có mã TD-xx. Bốn dòng bắt buộc: **phản hồi → quyết định → lý do → ảnh hưởng**.
+File này được nối tiếp ở BT3 khi nhận phản hồi BT2.
 
-- **Phản hồi của GV:** DDL đặt score NOT NULL, nhưng UC1 cần tạo bản ghi survey_response
-  ngay khi phiếu đóng – lúc đó khách chưa trả lời nên score chưa có giá trị.
-  Nếu NOT NULL thì không thể tạo bản ghi DA_GUI.
-- **Quyết định:** SỬA
-- **Lý do:** Luồng nghiệp vụ gồm 2 bước tách biệt:
-  UC1 tạo khảo sát (status = DA_GUI, score = NULL) → sau đó
-  UC2 cập nhật score khi khách trả lời.
-  Nếu ép score NOT NULL thì hai use case không thể tách nhau.
-- **Ảnh hưởng:** DDL survey_response: bỏ NOT NULL khỏi cột score và responded_at;
-  thêm CHECK đồng bộ (DA_GUI → score IS NULL; DA_TRA_LOI → score IS NOT NULL);
-  cập nhật erd.drawio và SRS mục 4.
+## Sau phản hồi Bài tập 1 (buổi 8, ngày 21/10/2026)
 
----
+Điểm BT1: 6,5/10 (Đầy đủ 7,25 · Kỹ thuật 5,75 · Nhất quán 7,5 · Trình bày 7).
 
-### TD-02 Bổ sung cột sent_at và responded_date vào survey_response
+### TD-01 Thêm chú thích ký hiệu cho ba sơ đồ
+- Phản hồi của GV: Use Case Diagram, sơ đồ kiến trúc và ERD chưa có chú thích ký hiệu; cần khung giải thích actor, extend, mũi tên, PK, FK, 1–N.
+- Quyết định: **SỬA**
+- Lý do: người đọc không biết các ký hiệu tự đặt (màu khối, mũi tên, chân chim) mang nghĩa gì thì không kiểm tra được thiết kế; thêm khung chú thích không làm đổi nội dung thiết kế.
+- Ảnh hưởng: vẽ lại Hình 2.1, 3.1, 4.1 có khung "Chú thích ký hiệu"; cập nhật `docs/usecase_L8_v2.drawio`, `docs/kien-truc_L8.drawio`, `docs/erd_L8_v2.drawio`; thêm một câu trỏ tới khung chú thích trong SRS mục Use Case, Kiến trúc, ERD.
 
-- **Phản hồi của GV:** Thiếu thông tin để biết khảo sát được gửi lúc nào và khách
-  trả lời vào ngày nào; FR-05 (biểu đồ xu hướng theo tháng/quý) không tính được
-  nếu chỉ có responded_at dạng TIMESTAMP.
-- **Quyết định:** SỬA
-- **Lý do:** FR-05 cần gom nhóm theo tháng/quý; responded_date (DATE) kết hợp
-  dim_date giúp truy vấn GROUP BY tháng/quý đọc được hơn và nhanh hơn
-  hàm strftime() trên TIMESTAMP.
-- **Ảnh hưởng:** Thêm cột sent_at TIMESTAMP và responded_date DATE vào
-  survey_response; bổ sung bảng dim_date và script sinh bảng này;
-  cập nhật erd.drawio và SRS mục 4.
+### TD-02 Sửa cột customer trong ERD cho khớp DDL
+- Phản hồi của GV: ERD Hình 4.1 ghi bảng customer có cột `center_name`, nhưng DDL dùng `full_name`.
+- Quyết định: **SỬA**
+- Lý do: hai tài liệu mâu thuẫn nhau thì người hiện thực không biết tin bên nào; DDL (đã chạy thử) là nguồn đúng. Nguyên nhân là nhãn bị gõ nhầm khi chỉnh sơ đồ bằng tay, và dòng `is_deleted` bị đẩy lên đầu bảng do tính năng tự xếp dòng của draw.io.
+- Ảnh hưởng: ERD vẽ lại với customer gồm `customer_id`, `full_name`, `phone`; file draw.io mới bỏ tự xếp dòng nên thứ tự cột giữ nguyên khi kéo bảng; migration `001_schema.sql` dùng đúng các cột này.
 
----
+### TD-03 Giảm User Story từ 8 xuống 7
+- Phản hồi của GV: có 8 User Story, đề yêu cầu 5–7.
+- Quyết định: **SỬA** (bỏ US7 cũ "gắn nhãn cảm xúc cho nhận xét", mức COULD; US8 cũ thành US7)
+- Lý do: US7 cũ là mức COULD, cần xử lý văn bản và độ chính xác thấp với nhận xét tiếng Việt không dấu; bỏ nó vừa đạt khung 5–7 vừa tập trung nguồn lực vào 4 story MUST. Giữ story này trong danh sách WON'T thay vì xóa hẳn ý tưởng.
+- Ảnh hưởng: SRS còn 7 US / 7 FR / 7 UC (đánh số lại FR-07 = thông báo điểm thấp, UC7 = nhận thông báo); mục 1.3 thêm "không phân loại cảm xúc nhận xét"; bỏ cột `sentiment` khỏi `survey_response` (ERD, DDL, migration); bỏ khối Sentiment Module khỏi sơ đồ kiến trúc; Marketing chỉ còn UC5; BS-05 sửa lại.
 
-### TD-03 Giữ nguyên không tách bảng địa chỉ cho customer
+### TD-04 Thêm cột MoSCoW vào bảng truy vết
+- Phản hồi của GV: bảng truy vết chưa có cột MoSCoW.
+- Quyết định: **SỬA**
+- Lý do: truy vết cần cho biết yêu cầu nào bắt buộc để biết thứ tự hiện thực; mức MoSCoW của FR bằng mức của US tương ứng nên không phát sinh mâu thuẫn.
+- Ảnh hưởng: bảng truy vết SRS mục 7 có cột FR – US – UC – MoSCoW – NFR – Quy tắc – Test case.
 
-- **Phản hồi của GV:** Nên tách địa chỉ thành bảng riêng để chuẩn hoá.
-- **Quyết định:** GIỮ NGUYÊN
-- **Lý do:** Phạm vi L8 chỉ cần số điện thoại khách để liên hệ (QT-15, FR-06);
-  không có yêu cầu lưu hay hiển thị địa chỉ trong bất kỳ FR nào của luồng này.
-  Tách bảng sẽ thêm một JOIN mà không mang lại lợi ích nào trong phạm vi này.
-  Nếu luồng khác cần địa chỉ sẽ mở rộng ở giai đoạn sau.
-- **Ảnh hưởng:** Không thay đổi ERD. Đã ghi chú lý do vào SRS mục 4.1.
+### TD-05 Bổ sung thông tin trang bìa và sửa link GitHub
+- Phản hồi của GV: bìa thiếu lớp, ngày nộp, link GitHub; link ở cuối bài bị cắt (`.../Khao_sat_hai_long-`) nên không mở được repo để kiểm file .drawio.
+- Quyết định: **SỬA**
+- Lý do: giảng viên cần mở được repo để đối chiếu tài liệu với mã nguồn; link dài nên bị cắt khi xuống dòng.
+- Ảnh hưởng: bìa có Lớp, Ngày nộp, GitHub (gắn hyperlink vào chữ ngắn); repo để chế độ public và kiểm tra bằng cửa sổ ẩn danh.
 
----
+### TD-06 Thống nhất MSSV
+- Phản hồi của GV: dòng cam kết ghi sai MSSV (ISS10).
+- Quyết định: **SỬA**
+- Lý do: MSSV đúng là 237480201IS10 như trên bìa; dòng cam kết lấy nhầm theo phiếu phạm vi cũ.
+- Ảnh hưởng: sửa dòng cam kết ở phụ lục AI; kiểm lại phiếu phạm vi và báo cáo buổi 4 nếu còn ghi ISS10.
 
-### TD-04 Dùng SQLite thay PostgreSQL trong môi trường phát triển
+### TD-07 Đưa file .drawio gốc vào docs/ của repo
+- Phản hồi của GV (gợi ý BT2): gửi lại link repo đầy đủ, có `docs/` với các file `.drawio` gốc.
+- Quyết định: **SỬA**
+- Lý do: file gốc cho phép giảng viên và chính em chỉnh tiếp sơ đồ; ảnh PNG chỉ để xem.
+- Ảnh hưởng: `docs/` chứa 3 file `.drawio` (use case, kiến trúc, ERD), `docs/srs.md` đã cập nhật theo TD-01 → TD-06 và ảnh trong `docs/img/`.
 
-- **Phản hồi của GV:** Sơ đồ kiến trúc ghi PostgreSQL nhưng DDL dùng cú pháp
-  AUTOINCREMENT (chỉ có trong SQLite, không phải cú pháp chuẩn SQL).
-- **Quyết định:** SỬA (làm rõ trong tài liệu)
-- **Lý do:** Môi trường phát triển cá nhân dùng SQLite để tránh phụ thuộc cài đặt
-  (đây là phương án dự phòng hợp lệ theo hướng dẫn buổi 8). Tất cả câu lệnh SQL
-  tương thích; nếu chuyển PostgreSQL chỉ thay driver và chuỗi kết nối.
-- **Ảnh hưởng:** Cập nhật sơ đồ kiến trúc ghi rõ "SQLite (dev) / PostgreSQL (prod)";
-  cập nhật README mục 2 và mục 6.
+### TD-08 Viết test cho ràng buộc UNIQUE(ticket_id)
+- Phản hồi của GV (gợi ý BT2): viết test cho `UNIQUE(ticket_id)` khi gửi phản hồi 2 lần.
+- Quyết định: **SỬA**
+- Lý do: QT-10 và NFR4 là yêu cầu quan trọng nhất của luồng; chỉ kiểm tra ở tầng service là chưa đủ vì hai yêu cầu đồng thời vẫn có thể lọt qua, nên cần test cả ở tầng service và tầng CSDL.
+- Ảnh hưởng: thêm `tests/survey.test.js` (16 test qua HTTP, trong đó QT-10 được kiểm ở ba chỗ: tạo trùng, gửi lại, ràng buộc UNIQUE ở CSDL) và `tests/survey.service.test.js` (2 test tình huống đua: kiểm tra ở service bị vượt qua nhưng CSDL vẫn chặn); `npm test` chạy 18 test.
+
+## Quyết định phát sinh khi hiện thực (buổi 8)
+
+### TD-09 Mô phỏng vai trò bằng header, chưa đăng nhập thật
+- Phản hồi của GV: không có (quyết định khi dựng Access Middleware).
+- Quyết định: **GIỮ NGUYÊN** phạm vi "không đăng nhập SSO" của BT1
+- Lý do: SRS mục 1.3 đã loại SSO khỏi phạm vi; quy tắc cần kiểm chứng là QT-14 và QT-15 (phân quyền theo vai trò và trung tâm), không phải cơ chế xác thực. Dùng header `X-Role` và `X-Center-Id` cho phép test đủ các vai trò mà không tốn thời gian làm đăng nhập.
+- Ảnh hưởng: `src/middleware/access.js` đọc header; mọi quy tắc phân quyền vẫn nằm ở middleware và service nên khi thay bằng đăng nhập thật chỉ phải sửa một file. Ghi rõ trong README mục 5 là cơ chế mô phỏng.
+
+### TD-10 Dữ liệu danh mục tạm dùng seed sinh mô phỏng
+- Phản hồi của GV: không có (đề buổi 8 yêu cầu nạp danh mục từ bộ mẫu).
+- Quyết định: **SỬA** (làm sau) — hiện **chưa** nạp CSV mẫu của LMS
+- Lý do: để module chạy được ngay, `src/db/seed.js` sinh dữ liệu mô phỏng có seed cố định (42) với đúng quy mô case study (6 trung tâm, 38 kỹ thuật viên, 150 phiếu, tỷ lệ phản hồi khoảng 30% phiếu đóng). Đây chỉ là bước tạm; dữ liệu thật từ `service_centers.csv`, `technicians.csv`, `tickets_history.csv`, `survey_responses.csv` sẽ nạp thay thế.
+- Ảnh hưởng: README mục 6 ghi việc còn dở "nạp CSV mẫu"; không đổi thiết kế vì bảng và cột đã khớp từ điển dữ liệu.
+
+### TD-11 Khảo sát tạo trước, điểm cho phép rỗng
+- Phản hồi của GV: không có (phát sinh từ BT1, nay đã hiện thực).
+- Quyết định: **GIỮ NGUYÊN** điều chỉnh đã nêu ở BT1 Chương 4 mục 3
+- Lý do: UC1 tạo khảo sát lúc phiếu đóng, trước khi khách trả lời nên `score`, `responded_at` phải cho phép NULL khi `status = DA_GUI`; ràng buộc CHECK đảm bảo hai trạng thái luôn nhất quán. Khi viết service, mọi phép tính CSAT lọc `status = 'DA_TRA_LOI'`.
+- Ảnh hưởng: không đổi; có test xác nhận CSDL chặn dòng DA_TRA_LOI thiếu điểm và dòng DA_GUI đã có điểm.
+
+### TD-12 Dùng `node:sqlite` có sẵn thay cho `better-sqlite3`
+- Phản hồi của GV: không có (phát sinh ở chặng 2 – lỗi môi trường khi cài thư viện).
+- Quyết định: **SỬA** thư viện truy cập CSDL; **GIỮ NGUYÊN** quyết định dùng SQLite
+- Lý do: khi đã có `package-lock.json`, `npm install` cố biên dịch `better-sqlite3` từ mã nguồn và thất bại trong môi trường sạch (thiếu công cụ build/mạng tải header của Node). Đề buổi 8 dặn không để cả buổi trôi vào cài đặt; `node:sqlite` đi kèm Node 22.13+ nên không cần biên dịch, và dự án chỉ còn hai thư viện thuần JavaScript (express, dotenv).
+- Ảnh hưởng: chỉ sửa `src/db/connection.js` (lớp bọc có `prepare`, `exec`, `transaction`, `close`) và một dòng nhận diện lỗi ràng buộc trong `survey.service.js`; repositories, routes, migration, seed, test giữ nguyên. Yêu cầu môi trường ghi ở README mục 2: Node ≥ 22.13. Đánh đổi: `node:sqlite` còn ở mức thử nghiệm (đã ẩn cảnh báo trong các script `npm`).
+
+### TD-13 Tách `src/` thành `backend/` và `frontend/`
+- Phản hồi của GV: không có (đề buổi 8 yêu cầu thư mục `src/` ánh xạ một–một với các lớp trong sơ đồ kiến trúc).
+- Quyết định: **SỬA** cấu trúc thư mục; **GIỮ NGUYÊN** thiết kế các lớp bên trong
+- Lý do: sơ đồ kiến trúc BT1 có hai khối lớn là Frontend và Backend API; cấu trúc cũ để backend ở `src/` còn frontend ở `public/` nên chưa khớp trực tiếp. Frontend vẫn là HTML/JS tĩnh (lập luận 4, BT1 Chương 3) nên được Express phục vụ chung cổng, không cần CORS và không cần máy chủ thứ hai. Nếu sau này dùng React/Vue thì tách `frontend/` thành dự án riêng có `package.json` và ghi lại ở TD mới.
+- Ảnh hưởng: chuyển toàn bộ mã backend vào `src/backend/`, `public/` thành `src/frontend/`; sửa đường dẫn trong `package.json`, `app.js` (thư mục tĩnh), `tests/`, `commit-plan.sh`, README mục 4, `docs/anh-xa-kien-truc.md`, `docs/kien-truc_L8.drawio`. Không đổi hành vi: 18 test vẫn đạt.
